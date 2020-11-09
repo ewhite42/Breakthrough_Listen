@@ -7,8 +7,8 @@ import argparse
 
 parser = argparse.ArgumentParser(description="generates a histogram of the spectral occupancy from a given set of .dat files")
 parser.add_argument("folder", help="directory to L-Band .dat files")
-parser.add_argument("bin_width", help="width of bin in Mhz", type=float)
-parser.add_argument("-GBT", help="data was collected from Green Bank Telescope", action="store_true", default=False)
+parser.add_argument("-bin_width", "-b", help="width of bin in Mhz", type=float, default=1)
+parser.add_argument("-GBT", help="data was collected from Green Bank Telescope", action="store_true")
 args = parser.parse_args()
 
 dat_files = glob.glob(args.folder+"*.dat")
@@ -62,7 +62,6 @@ def calculate_proportion(file_list, bin_width=1, GBT=False):
         df.insert(len(df.columns), colname, found_hit.astype(int))
     
     #exclude entries in the GBT data due to the notch filter exclusion
-    #bin_edges = np.arange(min_freq, max_freq+.1, bin_width)
     bin_edges = np.linspace(min_freq, max_freq, int((max_freq-min_freq)/bin_width), endpoint=True)
     if GBT:
         df = df[(df["freq"] < 1200) | (df["freq"] > 1341)]
@@ -82,8 +81,8 @@ def calculate_proportion(file_list, bin_width=1, GBT=False):
 bin_edges, prob_hist = calculate_proportion(dat_files, bin_width=args.bin_width, GBT=args.GBT)
 
 plt.figure(figsize=(20, 10))
-plt.bar(bin_edges[:-1], prob_hist)#, width = 1) 
+plt.bar(bin_edges[:-1], prob_hist, width = .99) 
 plt.xlabel("Frequency [Mhz]")
-plt.ylabel("Probability of hit")
-plt.title("GBT L-Band Spectral Occupancy")
+plt.ylabel("Fraction of Hits")
+plt.title("Spectral Occupancy")
 plt.savefig("spectral_occupancy.pdf")
