@@ -14,6 +14,7 @@ parser.add_argument("-GBTS", help="data was collected from Green Bank Telescope 
 args = parser.parse_args()
 
 def read_txt(text_file):
+    """reads a text file with one file path per line and returns a list containing the paths"""
     with open(text_file) as open_file:
         lines = open_file.readlines()
     
