@@ -139,7 +139,7 @@ def remove_DC_spike(dat_file, outdir, GBT_band, num_course_channels):
                 
                 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="takes a set of .dat files and produces a new set of .dat files that have the DC spike removed")
+    parser = argparse.ArgumentParser(description="Takes a set of .dat files and produces a new set of .dat files that have the DC spike removed. The files will be saved to a new directory that is created in the same directory as the .dat files, called <band>_band_no_DC_spike")
     parser.add_argument("-folder", "-f", help="directory .dat files are held in")
     parser.add_argument("-band", "-b", help="the GBT band that the data was collected from. Either L, S, C, or X")
     parser.add_argument("-nchan", "-n", help="number of course channels in the band. Default is 512")
