@@ -115,7 +115,7 @@ def clean_one_dat(datfile_curr, outpath, freqs_fine_channels_list, foff):
                     row=glue.join(row)
                     outfile.write(str(row))
 
-def remove_DC_spike(dat_file, outdir, GBT_band, num_course_channels):
+def remove_DC_spike(dat_file, outdir, GBT_band, num_course_channels=512):
     """
     The driver function which generates and saves 
     a .dat file without DC spikes
@@ -130,7 +130,8 @@ def remove_DC_spike(dat_file, outdir, GBT_band, num_course_channels):
         the band at which the data was collected
         choose from {"L", "S", "C", "X"}
     num_course_channels : int
-        the number of course channels in a frequency band
+        the number of course channels in a frequency band. The 
+        default is 512
     """
     fch1, foff, nfpc = grab_parameters(dat_file, GBT_band)
     spike_channels_list = spike_channels(num_course_channels, nfpc)
