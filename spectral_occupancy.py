@@ -4,6 +4,56 @@ import pandas as pd
 import turbo_seti.find_event as find
 import glob
 import argparse
+import os
+from tqdm import trange
+
+def remove_spikes(dat_files, GBT_band, num_course_channels=512):
+    """
+    Calls DC spike removal code on the list of 
+    .dat files. Reads a .dat file and generates
+    and saves a new .dat file that has no DC spikes 
+    
+    Arguments
+    ----------
+    dat_files : lst
+        A python list containing the filepaths of 
+        all the dat files which will have their 
+        DC spikes removed
+    GBT_band : str
+        the band at which the data was collected
+        choose from {"L", "S", "C", "X"}
+    num_course_channels : int
+        the number of course channels in a frequency band. The 
+        default is 512
+        
+    Returns
+    ----------
+    new_dat_files : lst
+        a python list of the filepaths to the new
+        .dat files which no longer contain DC spikes
+    """
+    import remove_DC_spike
+    
+    new_dat_files = []
+    
+    for i in trange(len(dat_files)):
+        #get the path
+        dat = dat_files[i]
+        path = os.path.dirname(dat)
+        old_dat = os.path.basename(dat)
+        
+        # determine where to save new file
+        checkpath = path+"/%s_band_no_DC_spike"%GBT_band
+        if os.path.isdir(checkpath):
+            pass
+        else:
+            os.mkdir(checkpath)
+        
+        remove_DC_spike.remove_DC_spike(dat, checkpath, GBT_band, num_course_channels)
+        
+        newpath = checkpath+"/"+old_dat+"new.dat"
+        new_dat_files.append(newpath)
+    return new_dat_files
 
 def read_txt(text_file):
     """
@@ -53,7 +103,7 @@ def calculate_hist(dat_file, bin_width=1):
     hist, bin_edges = np.histogram(tbl["Freq"], bins=bins)
     return hist, bin_edges
 
-def calculate_proportion(file_list, bin_width=1, GBT_L=False, GBT_S=False):
+def calculate_proportion(file_list, GBT_band, notch_filter=False, bin_width=1):#GBT_L=False, GBT_S=False):
     """
     Takes in a list of .dat files and makes a true/false table of hits in a frequency bin
     
@@ -63,18 +113,15 @@ def calculate_proportion(file_list, bin_width=1, GBT_L=False, GBT_S=False):
         A python list containing the filepaths to .dat 
         files that will be used to calculate the 
         spcetral occupancy
+    GBT_band : str
+        the band at which the data was collected
+        choose from {"L", "S", "C", "X"}
+    notch_filter : bool
+        A flag indicating whether or not to remove data 
+        that fell within the notch filter. Note to user:
+        only L and S band have notch filters
     bin_width : float
         width of the hisrogram bins in MHz
-    GBT_L : bool
-        Indicates whether the data comes from the L-band
-        of Green Bank Telescope. If set to true, the 
-        data between 1200-1341 Mhz will be excluded due
-        to the notch filter in that range
-    GBT_S : bool
-        Indicates whether the data comes from the S-band
-        of Green Bank Telescope. If set to true, the 
-        data between 2300-2360 Mhz will be excluded due
-        to the notch filter in that range
     """
     edges = []
     histograms = []
@@ -114,19 +161,21 @@ def calculate_proportion(file_list, bin_width=1, GBT_L=False, GBT_S=False):
     
     #exclude entries in the GBT data due to the notch filter exclusion
     bin_edges = np.linspace(min_freq, max_freq, int((max_freq-min_freq)/bin_width), endpoint=True)
-    if GBT_L:
-        print("Excluding hits in the range 1200-1341 MHz")
-        df = df[(df["freq"] < 1200) | (df["freq"] > 1341)]
-        first_edge = np.arange(min_freq, 1200, bin_width)
-        second_edge= np.arange(1341, max_freq, bin_width) #may or may not need max_freq+1
-        bin_edges = np.append(first_edge, second_edge)
+    if GBT_band=="L":
+        if notch_filter:
+            print("Excluding hits in the range 1200-1341 MHz")
+            df = df[(df["freq"] < 1200) | (df["freq"] > 1341)]
+            first_edge = np.arange(min_freq, 1200, bin_width)
+            second_edge= np.arange(1341, max_freq, bin_width) #may or may not need max_freq+1
+            bin_edges = np.append(first_edge, second_edge)
     
-    if GBT_S:
-        print("Excluding hits in the range 2300-2360 MHz")
-        df = df[(df["freq"] < 2300) | (df["freq"] > 2360)]
-        first_edge = np.arange(min_freq, 2300, bin_width)
-        second_edge= np.arange(2360, max_freq, bin_width) #may or may not need max_freq+1
-        bin_edges = np.append(first_edge, second_edge)
+    if GBT_band=="S":
+        if notch_filter:
+            print("Excluding hits in the range 2300-2360 MHz")
+            df = df[(df["freq"] < 2300) | (df["freq"] > 2360)]
+            first_edge = np.arange(min_freq, 2300, bin_width)
+            second_edge= np.arange(2360, max_freq, bin_width) #may or may not need max_freq+1
+            bin_edges = np.append(first_edge, second_edge)
 
      
     # sum up the number of entries that have a hit and divide by the number of .dat files
@@ -143,9 +192,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="generates a histogram of the spectral occupancy from a given set of .dat files")
     parser.add_argument("-folder", "-f", help="directory .dat files are held in")
     parser.add_argument("-t", help="a .txt file to read the filepaths of the .dat files", action=None)
-    parser.add_argument("-bin_width", "-b", help="width of bin in Mhz", type=float, default=1)
-    parser.add_argument("-GBTL", help="data was collected from Green Bank Telescope L-band", action="store_true")
-    parser.add_argument("-GBTS", help="data was collected from Green Bank Telescope S-band", action="store_true")
+    parser.add_argument("-width", "-w", help="width of bin in Mhz", type=float, default=1)
+    #parser.add_argument("-GBTL", help="data was collected from Green Bank Telescope L-band", action="store_true")
+    #parser.add_argument("-GBTS", help="data was collected from Green Bank Telescope S-band", action="store_true")
+    parser.add_argument("-band", "-b", help="the GBT band that the data was collected from. Either L, S, C, or X")
+    parser.add_argument("-notch_filter", "-nf", help="exclude data that was collected within GBT's notch filter when generating the plot", action="store_true")
+    parser.add_argument("-DC", "-d", help="files contain DC spikes that need to be removed", action="store_true")
+    parser.add_argument("-nchan", "-n", help="number of course channels in the band. would be passed into remove_DC_spikes, default is 512")
     args = parser.parse_args()
     
     print("Gathering files...",end="")
@@ -155,7 +208,17 @@ if __name__ == "__main__":
         dat_files = read_txt(args.t)
     print("Done.")
     
-    bin_edges, prob_hist = calculate_proportion(dat_files, bin_width=args.bin_width, GBT_L=args.GBTL, GBT_S=args.GBTS)
+    # check for argument to remove DC spikes
+    if args.DC:
+        if args.nchan is not None:
+            nchan = args.nchan
+        else:
+            nchan = 512
+        print("Removing DC spikes...")
+        dat_files = remove_spikes(dat_files, args.band)
+        print("Done.")
+    
+    bin_edges, prob_hist = calculate_proportion(dat_files, bin_width=args.width, GBT_band=args.band, notch_filter=args.notch_filter)# GBT_L=args.GBTL, GBT_S=args.GBTS)
     
     print("Saving plot...",end="")
     plt.figure(figsize=(20, 10))
