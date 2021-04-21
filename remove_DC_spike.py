@@ -42,7 +42,9 @@ def grab_parameters(dat_file, GBT_band):
     foff = float(tbl["DELTAF"][0])*1e-6 
     
     nfpc=(1500.0/512.0)/abs(foff)
-    return fch1, foff, nfpc
+    
+    num_course_channels = np.max(tbl["CoarseChanNum"])
+    return fch1, foff, nfpc, num_course_channels
 
 def spike_channels(num_course_channels, nfpc):
     """makes a spike channels list given a list of channels"""
@@ -120,7 +122,7 @@ def clean_one_dat(datfile_curr, outpath, freqs_fine_channels_list, foff):
                     row=glue.join(row)
                     outfile.write(str(row))
 
-def remove_DC_spike(dat_file, outdir, GBT_band, num_course_channels=512):
+def remove_DC_spike(dat_file, outdir, GBT_band):
     """
     The driver function which generates and saves 
     a .dat file without DC spikes
@@ -138,7 +140,7 @@ def remove_DC_spike(dat_file, outdir, GBT_band, num_course_channels=512):
         the number of course channels in a frequency band. The 
         default is 512
     """
-    fch1, foff, nfpc = grab_parameters(dat_file, GBT_band)
+    fch1, foff, nfpc, num_course_channels = grab_parameters(dat_file, GBT_band)
     spike_channels_list = spike_channels(num_course_channels, nfpc)
     freqs_fine_channels_list = freqs_fine_channels(spike_channels_list,fch1, foff)
     clean_one_dat(dat_file, outdir, freqs_fine_channels_list, foff)
@@ -148,22 +150,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Takes a set of .dat files and produces a new set of .dat files that have the DC spike removed. The files will be saved to a new directory that is created in the same directory as the .dat files, called <band>_band_no_DC_spike")
     parser.add_argument("band", help="the GBT band that the data was collected from. Either L, S, C, or X")
     parser.add_argument("-folder", "-f", help="directory .dat files are held in")
-    parser.add_argument("-nchan", "-n", help="number of course channels in the band. Default is 512")
     args = parser.parse_args()
 
     # collect paths to .dat files
     dat_files = glob.glob(args.folder+"/*.dat")
 
-    # set the number of course channels to loop over
-    num_course_channels = 512
-    if args.nchan is not None:
-        num_course_channels = int(args.nchan)
-    
     # set the GBT band
     GBT_band = args.band
     
     # make a directory to store the .dats that have had the DC spike removed
-    #checkpath = args.folder+"/%s_band_no_DC_spike"%args.band
     checkpath = "%s_band_no_DC_spike"%args.band
     if os.path.isdir(checkpath):
         pass
@@ -173,7 +168,7 @@ if __name__ == "__main__":
     print("Removing DC spikes...")
     start = time.time()
     for i in trange(len(dat_files)):
-        remove_DC_spike(dat_files[i], checkpath, GBT_band, num_course_channels)
+        remove_DC_spike(dat_files[i], checkpath, GBT_band)
     end = time.time()
 
     print("All Done!")

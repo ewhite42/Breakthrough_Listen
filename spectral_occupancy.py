@@ -8,7 +8,7 @@ import argparse
 import os
 from tqdm import trange
 
-def remove_spikes(dat_files, GBT_band, num_course_channels=512):
+def remove_spikes(dat_files, GBT_band):
     """
     Calls DC spike removal code on the list of 
     .dat files. Reads a .dat file and generates
@@ -44,13 +44,13 @@ def remove_spikes(dat_files, GBT_band, num_course_channels=512):
         old_dat = os.path.basename(dat)
         
         # determine where to save new file
-        checkpath = "%s_band_no_DC_spike"%GBT_band # POTENTIAL CHANGE HERE
+        checkpath = "%s_band_no_DC_spike"%GBT_band
         if os.path.isdir(checkpath):
             pass
         else:
             os.mkdir(checkpath)
         
-        remove_DC_spike.remove_DC_spike(dat, checkpath, GBT_band, num_course_channels)
+        remove_DC_spike.remove_DC_spike(dat, checkpath, GBT_band)
         
         newpath = checkpath+"/"+old_dat+"new.dat"
         new_dat_files.append(newpath)
@@ -156,16 +156,7 @@ def calculate_proportion(file_list, GBT_band, notch_filter=False, bin_width=1):
             max_freq = max(bin_edges)
         edges.append(bin_edges)
         histograms.append(hist)
-    print("Done.")
-    
-    #make sure all lists are within the boundaries
-    #print("Trimming edges...",end="")
-    #for i in range(len(edges)):
-    #    within_boundaries = np.where( (edges[i] >= min_freq) & (edges[i] <= max_freq) ) #get the boundaries of the tightest frequency range
-    #    edges[i] = edges[i][within_boundaries] # take only the entries within that range
-    #    freq_boundaries = within_boundaries[0][:-1] # since the bins list has one more entry than frequencies, I will drop the last entry. the hit count will correspond with the frequency at the start of its bin
-    #    histograms[i] = histograms[i][freq_boundaries] # take only the entries within that range
-    #print("Done.")    
+    print("Done.")  
     
     #create the dataframe and add the frequency bins to column 0
     df = pd.DataFrame()
@@ -214,7 +205,6 @@ if __name__ == "__main__":
     parser.add_argument("-width", "-w", help="width of bin in Mhz", type=float, default=1)
     parser.add_argument("-notch_filter", "-nf", help="exclude data that was collected within GBT's notch filter when generating the plot", action="store_true")
     parser.add_argument("-DC", "-d", help="files contain DC spikes that need to be removed", action="store_true")
-    parser.add_argument("-nchan", "-n", help="number of course channels in the band. would be passed into remove_DC_spikes, default is 512")
     args = parser.parse_args()
     
     print("Gathering files...",end="")
@@ -226,15 +216,11 @@ if __name__ == "__main__":
     
     # check for argument to remove DC spikes
     if args.DC:
-        if args.nchan is not None:
-            nchan = int(args.nchan)
-        else:
-            nchan = 512
         print("Removing DC spikes...")
-        dat_files = remove_spikes(dat_files, args.band, nchan)
+        dat_files = remove_spikes(dat_files, args.band)
         print("Done.")
     
-    bin_edges, prob_hist = calculate_proportion(dat_files, bin_width=args.width, GBT_band=args.band, notch_filter=args.notch_filter)# GBT_L=args.GBTL, GBT_S=args.GBTS)
+    bin_edges, prob_hist = calculate_proportion(dat_files, bin_width=args.width, GBT_band=args.band, notch_filter=args.notch_filter)
     
     print("Saving plot...",end="")
     plt.figure(figsize=(20, 10))
