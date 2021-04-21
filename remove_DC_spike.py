@@ -1,3 +1,8 @@
+"""
+Thanks to Karen Perez for sharing her code
+to remove the DC spikes from a .dat file. 
+"""
+
 import numpy as np
 import pandas as pd
 import glob
@@ -141,8 +146,8 @@ def remove_DC_spike(dat_file, outdir, GBT_band, num_course_channels=512):
                 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Takes a set of .dat files and produces a new set of .dat files that have the DC spike removed. The files will be saved to a new directory that is created in the same directory as the .dat files, called <band>_band_no_DC_spike")
+    parser.add_argument("band", help="the GBT band that the data was collected from. Either L, S, C, or X")
     parser.add_argument("-folder", "-f", help="directory .dat files are held in")
-    parser.add_argument("-band", "-b", help="the GBT band that the data was collected from. Either L, S, C, or X")
     parser.add_argument("-nchan", "-n", help="number of course channels in the band. Default is 512")
     args = parser.parse_args()
 
@@ -158,7 +163,8 @@ if __name__ == "__main__":
     GBT_band = args.band
     
     # make a directory to store the .dats that have had the DC spike removed
-    checkpath = args.folder+"/%s_band_no_DC_spike"%args.band
+    #checkpath = args.folder+"/%s_band_no_DC_spike"%args.band
+    checkpath = "%s_band_no_DC_spike"%args.band
     if os.path.isdir(checkpath):
         pass
     else:
