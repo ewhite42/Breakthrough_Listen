@@ -11,8 +11,9 @@ import time
 import turbo_seti.find_event as find
 import os
 from tqdm import trange
-    
-def grab_parameters(dat_file, GBT_band):
+import blimpy as bp
+
+def grab_parameters(dat_file, GBT_band, use_defaults, h5_fil_path):
     """
     takes dat file of GBT data and returns frequency parameters 
     used to calculate where the DC spikes will be 
@@ -24,26 +25,41 @@ def grab_parameters(dat_file, GBT_band):
     GBT_band : str
         the band at which the data was collected
         choose from {"L", "S", "C", "X"}
-        
+    use_defaults : bool
+        if True, the program uses the preset, 
+        hardcoded fch1 and foff values; if False,
+        fch1 and foff are retrieved from the h5/fil
+        files. 
+    h5_fil_path : str
+        the file path to the h5 or fil file
+        corresponding to the given dat file. 
+        Program will crash if use_defaults=False
+        and no h5_fil_path is specified.
     Returns : fch1, foff, nfpc
     which will be used internally within remove_DC_spike
     """
-    
+
     tbl = find.read_dat(dat_file)
-    
-    if GBT_band == "L":
-        fch1 = 1926.2695326677515 # LBAND  --  this is hardcoded, it would be nice to fix that
-    if GBT_band == "C":
-        fch1 = 8201.66015625 # CBAND                           ""
-    if GBT_band == "S":
-        fch1 = 2720.80078125 # SBAND                           ""
-    if GBT_band == "X":
-        fch1 = 11102.05078125 # XBAND                          ""
-    foff = float(tbl["DELTAF"][0])*1e-6 
-    
+    if use_defaults:
+        if GBT_band == "L":
+            fch1 = 1926.2695326677515 # LBAND  --  this is hardcoded, it would be nice to fix that
+        if GBT_band == "C":
+            fch1 = 8201.66015625 # CBAND                           ""
+        if GBT_band == "S":
+            fch1 = 2720.80078125 # SBAND                           ""
+        if GBT_band == "X":
+            fch1 = 11102.05078125 # XBAND                          ""
+        foff = float(tbl["DELTAF"][0])*1e-6 
+
+    else:
+        fil = bp.Waterfall(h5_fil_path)
+        fch1 = fil.header['fch1']
+        foff = fil.header['foff']
+
     nfpc=(1500.0/512.0)/abs(foff)
     
     num_course_channels = np.max(tbl["CoarseChanNum"])
+    #print('fch1: {0}, foff: {1}'.format(fch1, foff))
     return fch1, foff, nfpc, num_course_channels
 
 def spike_channels(num_course_channels, nfpc):
@@ -122,7 +138,7 @@ def clean_one_dat(datfile_curr, outpath, freqs_fine_channels_list, foff):
                     row=glue.join(row)
                     outfile.write(str(row))
 
-def remove_DC_spike(dat_file, outdir, GBT_band):
+def remove_DC_spike(dat_file, outdir, GBT_band, use_defaults=True, h5_fil_path=''):
     """
     The driver function which generates and saves 
     a .dat file without DC spikes
@@ -140,12 +156,12 @@ def remove_DC_spike(dat_file, outdir, GBT_band):
         the number of course channels in a frequency band. The 
         default is 512
     """
-    fch1, foff, nfpc, num_course_channels = grab_parameters(dat_file, GBT_band)
+    fch1, foff, nfpc, num_course_channels = grab_parameters(dat_file, GBT_band, use_defaults, h5_fil_path)
     spike_channels_list = spike_channels(num_course_channels, nfpc)
     freqs_fine_channels_list = freqs_fine_channels(spike_channels_list,fch1, foff)
     clean_one_dat(dat_file, outdir, freqs_fine_channels_list, foff)
-                
-                
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Takes a set of .dat files and produces a new set of .dat files that have the DC spike removed. The files will be saved to a new directory that is created in the same directory as the .dat files, called <band>_band_no_DC_spike")
     parser.add_argument("band", help="the GBT band that the data was collected from. Either L, S, C, or X")
