@@ -56,6 +56,9 @@ def grab_parameters(dat_file, GBT_band, use_defaults, h5_fil_path):
         fch1 = fil.header['fch1']
         foff = fil.header['foff']
 
+    #for Karen's files
+    fch1=float(fch1-(foff/2.0))
+
     nfpc=(1500.0/512.0)/abs(foff)
     
     num_course_channels = np.max(tbl["CoarseChanNum"])
